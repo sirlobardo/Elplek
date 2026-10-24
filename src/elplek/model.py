@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from math import isfinite
 
 
 @dataclass(frozen=True, slots=True)
@@ -76,8 +77,9 @@ class Transformer:
     number are supported in a simplified sequence model. The clock number
     defines the positive-sequence phase displacement of to_bus relative to
     from_bus; 0 is the legacy no-shift default and 12 is the standard zero-shift
-    clock position. Magnitude taps, core effects, and magnetizing branch are
-    not represented yet.
+    clock position. tap_ratio is the positive magnitude of the ideal complex tap
+    on the from_bus side; it must be finite and greater than zero. Core effects
+    and the magnetizing branch are not represented yet.
     """
     from_bus: int
     to_bus: int
@@ -91,12 +93,20 @@ class Transformer:
     from_neutral_impedance: complex = 0j
     to_neutral_impedance: complex = 0j
     vector_group_clock: int = 0
+    tap_ratio: float = 1.0
 
     def __post_init__(self) -> None:
         if self.from_bus <= 0 or self.to_bus <= 0:
             raise ValueError("Transformer terminal IDs must be positive bus IDs")
         if self.from_bus == self.to_bus:
             raise ValueError("Transformer cannot connect a bus to itself")
+        if (
+            isinstance(self.tap_ratio, bool)
+            or not isinstance(self.tap_ratio, (int, float))
+            or not isfinite(self.tap_ratio)
+            or self.tap_ratio <= 0
+        ):
+            raise ValueError("tap_ratio must be a finite positive number")
         if (
             not isinstance(self.vector_group_clock, int)
             or isinstance(self.vector_group_clock, bool)
