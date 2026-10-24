@@ -126,6 +126,14 @@ class Transformer:
                 )
         if (self.from_connection is None) != (self.to_connection is None):
             raise ValueError("Both transformer winding connections must be specified together")
+        if self.vector_group_clock != 0 and self.from_connection is not None:
+            from_is_delta = self.from_connection == "delta"
+            to_is_delta = self.to_connection == "delta"
+            mixed_connections = from_is_delta != to_is_delta
+            if (self.vector_group_clock % 2 == 1) != mixed_connections:
+                raise ValueError(
+                    "vector_group_clock parity is inconsistent with winding connections"
+                )
         if self.from_neutral_impedance.real < 0 or self.to_neutral_impedance.real < 0:
             raise ValueError("Neutral impedance resistance cannot be negative")
         if self.from_neutral_impedance != 0j and self.from_connection != "grounded_wye":
