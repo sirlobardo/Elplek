@@ -112,3 +112,46 @@ def test_sequence_thevenin_includes_shunt_admittance():
     np.testing.assert_allclose(result.z1, 2 / 3)
     np.testing.assert_allclose(result.z2, 1)
     np.testing.assert_allclose(result.z0, 1.2)
+
+
+
+def test_sequence_thevenin_includes_nominal_pi_line_charging():
+    network = Network()
+    network.add_bus(Bus(1))
+    network.add_bus(Bus(2))
+    network.add_branch(Branch(
+        1, 2,
+        resistance=1.0,
+        reactance=0.0,
+        negative_sequence_impedance=1.5 + 0j,
+        zero_sequence_impedance=2.0 + 0j,
+        shunt_admittance=0.0 + 0.2j,
+        negative_sequence_shunt_admittance=0.0 + 0.3j,
+        zero_sequence_shunt_admittance=0.0 + 0.1j,
+        name="pi line",
+    ))
+    network.add_source(Source(
+        1, 120, 2.0 + 0j, "grid",
+        negative_sequence_impedance=3.0 + 0j,
+        zero_sequence_impedance=4.0 + 0j,
+    ))
+
+    result = calculate_sequence_thevenin(network, 2)
+
+    def expected_zth(z_source, z_line, y_charging):
+        y_half = y_charging / 2
+        source_side_equivalent = 1 / (1 / z_source + y_half)
+        return 1 / (y_half + 1 / (z_line + source_side_equivalent))
+
+    np.testing.assert_allclose(
+        result.z1,
+        expected_zth(2.0 + 0j, 1.0 + 0j, 0.0 + 0.2j),
+    )
+    np.testing.assert_allclose(
+        result.z2,
+        expected_zth(3.0 + 0j, 1.5 + 0j, 0.0 + 0.3j),
+    )
+    np.testing.assert_allclose(
+        result.z0,
+        expected_zth(4.0 + 0j, 2.0 + 0j, 0.0 + 0.1j),
+    )
