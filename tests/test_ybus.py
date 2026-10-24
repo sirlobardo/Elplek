@@ -273,7 +273,7 @@ def test_transformer_rejects_neutral_impedance_on_delta_winding():
     with pytest.raises(ValueError, match="requires grounded_wye"):
         Transformer(
             1, 2, 0.1j, 0.1j,
-            from_connection="delta",
-            to_connection="grounded_wye",
+            from_connection="grounded_wye",
+            to_connection="delta",
             to_neutral_impedance=0.01j,
         )
