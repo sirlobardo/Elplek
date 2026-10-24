@@ -8,6 +8,7 @@ from .impedance import (
 )
 from .mna import stamp_short_circuit, stamp_source
 from .model import Branch, Bus, Network
+from .solver import SingularSystemError, solve_linear_system
 from .ybus import build_ybus
 
 __all__ = [
@@ -15,9 +16,11 @@ __all__ = [
     "Branch",
     "Bus",
     "Network",
+    "SingularSystemError",
     "build_ybus",
     "complex_divide",
     "impedance_admittance",
+    "solve_linear_system",
     "stamp_short_circuit",
     "stamp_source",
     "stamp_two_node",
