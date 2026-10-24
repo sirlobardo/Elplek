@@ -72,9 +72,12 @@ class Transformer:
       grounded_wye_delta: zero-sequence impedance is a grounded shunt at
       from_bus only; zero sequence does not transfer to to_bus.
 
-    Explicit winding connections and neutral impedances are supported for a
-    simplified zero-sequence model. Tap ratios, phase shift/vector-group angle,
-    and magnetizing branch are not represented yet.
+    Explicit winding connections, neutral impedances, and a vector-group clock
+    number are supported in a simplified sequence model. The clock number
+    defines the positive-sequence phase displacement of to_bus relative to
+    from_bus; 0 is the legacy no-shift default and 12 is the standard zero-shift
+    clock position. Magnitude taps, core effects, and magnetizing branch are
+    not represented yet.
     """
     from_bus: int
     to_bus: int
@@ -97,9 +100,9 @@ class Transformer:
         if (
             not isinstance(self.vector_group_clock, int)
             or isinstance(self.vector_group_clock, bool)
-            or not 0 <= self.vector_group_clock <= 11
+            or not 0 <= self.vector_group_clock <= 12
         ):
-            raise ValueError("vector_group_clock must be an integer from 0 to 11")
+            raise ValueError("vector_group_clock must be an integer from 0 to 12")
         if self.vector_group_clock != 0 and (
             self.from_connection is None or self.to_connection is None
         ):
