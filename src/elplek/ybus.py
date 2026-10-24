@@ -7,16 +7,15 @@ from numpy.typing import NDArray
 
 from .impedance import impedance_admittance, stamp_two_node
 from .model import Network
-from .impedance import impedance_admittance
 
 
 def build_ybus(network: Network) -> NDArray[np.complex128]:
     """Build the nodal admittance matrix for all series-impedance branches.
 
     Ground is represented by terminal ID 0 and has no matrix row/column.
-    Matrix ordering follows network.buses insertion order. This first version
-    supports series R+jX branches only; shunts, transformers, mutual coupling,
-    sequence networks and IEC peak corrections are not included.
+    Matrix ordering follows network.buses insertion order. Series branches and
+    transformer positive-sequence impedances are included; shunts, tap ratios,
+    mutual coupling and IEC peak corrections are not included.
     """
     n = len(network.buses)
     ybus = np.zeros((n, n), dtype=np.complex128)
@@ -27,6 +26,18 @@ def build_ybus(network: Network) -> NDArray[np.complex128]:
         upstream = 0 if branch.from_bus == 0 else index[branch.from_bus] + 1
         downstream = 0 if branch.to_bus == 0 else index[branch.to_bus] + 1
         stamp_two_node(ybus, upstream, downstream, y)
+
+    for transformer in network.transformers:
+        y = impedance_admittance(
+            complex(transformer.positive_sequence_impedance).real,
+            complex(transformer.positive_sequence_impedance).imag,
+        )
+        stamp_two_node(
+            ybus,
+            index[transformer.from_bus] + 1,
+            index[transformer.to_bus] + 1,
+            y,
+        )
 
     return ybus
 
