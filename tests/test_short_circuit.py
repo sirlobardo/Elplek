@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from elplek.model import Branch, Bus, Network, Shunt, Source
+from elplek.model import Branch, Bus, Network, Shunt, Source, Transformer
 from elplek.short_circuit import solve_short_circuit
 
 
@@ -123,3 +123,21 @@ def test_short_circuit_includes_bus_shunt_admittance():
     np.testing.assert_allclose(result.bus_voltages[1], 40 + 0j)
     np.testing.assert_allclose(result.fault_current, 40 + 0j)
     np.testing.assert_allclose(result.source_currents["grid"], 60 + 0j)
+
+
+
+def test_short_circuit_includes_transformer_series_impedance():
+    network = Network()
+    network.add_bus(Bus(1, "Source side"))
+    network.add_bus(Bus(2, "Fault side"))
+    network.add_source(Source(1, 100 + 0j, 1 + 0j, "grid"))
+    network.add_transformer(Transformer(
+        1, 2,
+        positive_sequence_impedance=0.5 + 0.5j,
+        negative_sequence_impedance=0.5 + 0.5j,
+    ))
+
+    result = solve_short_circuit(network, 2, fault_impedance=0.25 + 0j)
+    expected = 100 / (1 + (0.5 + 0.5j) + 0.25)
+
+    np.testing.assert_allclose(result.fault_current, expected)
