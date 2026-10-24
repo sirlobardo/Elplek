@@ -73,9 +73,12 @@ def calculate_sequence_thevenin(network: Network, bus_id: int) -> SequenceTheven
     behind their impedances and no loads. This is a no-load approximation, not
     a full power-flow prefault state.
     """
-    v1, z1 = _equivalent(network, bus_id, "positive")
-    _, z2 = _equivalent(network, bus_id, "negative")
+    # Validate zero-sequence paths first: this is the most restrictive data
+    # requirement for asymmetrical faults and avoids masking it with a missing
+    # negative-sequence parameter.
     _, z0 = _equivalent(network, bus_id, "zero")
+    _, z2 = _equivalent(network, bus_id, "negative")
+    v1, z1 = _equivalent(network, bus_id, "positive")
     return SequenceThevenin(v1, z1, z2, z0)
 
 
