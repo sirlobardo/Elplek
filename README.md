@@ -45,6 +45,7 @@ network.add_transformer(Transformer(
     from_connection="grounded_wye",
     to_connection="delta",
     vector_group_clock=11,
+    tap_ratio=1.05,  # ideal magnitude ratio on the from_bus side
 ))
 y_positive = build_ybus(network)
 y_negative = build_sequence_ybus(network, "negative")
@@ -59,9 +60,12 @@ position. Negative-sequence phase displacement is reversed. Zero-sequence
 network behavior depends on the configured winding connections and neutral
 impedances; its simplified model does not encode all transformer core designs.
 
-Magnitude tap ratios, magnetizing branches, complete vector-group/terminal
-conventions, full transformer grounding details, load-flow equivalence, and
-complete IEC 60909 corrections remain outside the current implementation.
+Tap magnitude ratios are supported as ideal complex taps on the from_bus side.
+Their positive- and negative-sequence Y-bus stamps are included; zero-sequence
+tap treatment follows the simplified connection model. Magnetizing branches,
+complete vector-group/terminal conventions, full transformer grounding details,
+load-flow equivalence, and complete IEC 60909 corrections remain outside the
+current implementation.
 The port is still under validation and should not yet be used as a certified
 replacement for the original program or an independently validated
 short-circuit study package.
