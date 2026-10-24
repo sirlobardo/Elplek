@@ -72,8 +72,9 @@ class Transformer:
       grounded_wye_delta: zero-sequence impedance is a grounded shunt at
       from_bus only; zero sequence does not transfer to to_bus.
 
-    Tap ratios, phase shift, neutral impedance and magnetizing branch are
-    not represented yet.
+    Explicit winding connections and neutral impedances are supported for a
+    simplified zero-sequence model. Tap ratios, phase shift/vector-group angle,
+    and magnetizing branch are not represented yet.
     """
     from_bus: int
     to_bus: int
@@ -115,11 +116,6 @@ class Transformer:
             raise ValueError("from_neutral_impedance requires grounded_wye connection")
         if self.to_neutral_impedance != 0j and self.to_connection != "grounded_wye":
             raise ValueError("to_neutral_impedance requires grounded_wye connection")
-        if self.from_connection is not None:
-            if self.from_connection != "grounded_wye" and self.from_neutral_impedance != 0j:
-                raise ValueError("from_neutral_impedance requires grounded_wye connection")
-            if self.to_connection != "grounded_wye" and self.to_neutral_impedance != 0j:
-                raise ValueError("to_neutral_impedance requires grounded_wye connection")
 
 
 @dataclass(slots=True)
