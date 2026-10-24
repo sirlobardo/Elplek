@@ -98,3 +98,33 @@ configured clock displacement, and bus shunts affect its result. This API
 remains a single-phase-equivalent solver; use `solve_network_fault` for the
 separate, simplified symmetrical-component fault path. Neither API is yet a
 certified implementation of IEC 60909.
+
+
+### Nominal-pi line model
+
+A `Branch` can include its total positive-sequence line charging admittance
+using `shunt_admittance`. The nominal-pi model stamps half of that admittance
+at each terminal bus. When the branch connects to ground, only the half at the
+non-ground terminal contributes to the reduced Y-bus.
+
+```python
+from elplek.model import Branch
+
+network.add_branch(Branch(
+    from_bus=1,
+    to_bus=2,
+    resistance=0.02,
+    reactance=0.15,
+    shunt_admittance=0.0 + 0.04j,  # total Yc for the line
+    negative_sequence_shunt_admittance=0.0 + 0.04j,
+    zero_sequence_impedance=0.06 + 0.30j,
+    zero_sequence_shunt_admittance=0.0 + 0.01j,
+    name="line 1-2",
+))
+```
+
+Negative-sequence line charging falls back to positive sequence when omitted.
+If positive-sequence line charging is nonzero, explicitly provide
+`zero_sequence_shunt_admittance` before constructing the zero-sequence
+matrix. Branch impedance and admittance values must use consistent units or
+the same per-unit base as the rest of the network.
