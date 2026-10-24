@@ -105,9 +105,11 @@ def build_sequence_ybus(
     Positive and negative transformer networks use the vector-group phase
     displacement with opposite signs; zero-sequence phase displacement is
     zero and connection-dependent grounding rules are applied.
-    Positive branches use R+jX. Negative branches fall back to positive
-    impedance when omitted. Zero-sequence branch impedances and shunt
-    admittances are mandatory.
+    Positive branches use R+jX. Negative branch impedances and charging
+    admittances fall back to positive sequence when omitted. A zero-sequence
+    branch impedance is required for every branch; zero-sequence charging is
+    required when the positive-sequence charging admittance is nonzero.
+    Independent bus shunts require explicit zero-sequence admittances.
     """
     if sequence not in {"positive", "negative", "zero"}:
         raise ValueError("sequence must be 'positive', 'negative', or 'zero'")
