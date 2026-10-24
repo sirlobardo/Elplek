@@ -27,18 +27,20 @@ def _stamp_with_phase_displacement(
     to_eq: int,
     admittance: complex,
     phase_displacement: float,
+    tap_ratio: float = 1.0,
 ) -> None:
     """Stamp a unit-magnitude ideal phase-shifting transformer.
 
     phase_displacement is the angle of the to-side positive-sequence voltage
-    relative to the from side. Sequence-network callers reverse its sign for
-    negative sequence. The equations use a = exp(-j*phase_displacement):
-    Yff = y, Yft = -y/conj(a), Ytf = -y/a, Ytt = y.
+    relative to the from side. tap_ratio is the ideal magnitude ratio on the
+    from side. Sequence-network callers reverse phase sign for negative
+    sequence. With a = tap_ratio*exp(-j*phase_displacement):
+    Yff = y/|a|^2, Yft = -y/conj(a), Ytf = -y/a, Ytt = y.
     """
     f = from_eq - 1
     t = to_eq - 1
-    tap = np.exp(-1j * phase_displacement)
-    ybus[f, f] += admittance
+    tap = tap_ratio * np.exp(-1j * phase_displacement)
+    ybus[f, f] += admittance / (abs(tap) ** 2)
     ybus[f, t] -= admittance / np.conjugate(tap)
     ybus[t, f] -= admittance / tap
     ybus[t, t] += admittance
@@ -74,6 +76,7 @@ def build_ybus(network: Network) -> NDArray[np.complex128]:
             index[transformer.to_bus] + 1,
             y,
             _clock_displacement_rad(transformer.vector_group_clock),
+            transformer.tap_ratio,
         )
 
     return ybus
@@ -153,11 +156,13 @@ def build_sequence_ybus(
                         + 3 * complex(transformer.to_neutral_impedance)
                     )
                     y_total = impedance_admittance(z_total.real, z_total.imag)
-                    stamp_two_node(ybus, from_eq, to_eq, y_total)
+                    _stamp_with_phase_displacement(
+                        ybus, from_eq, to_eq, y_total, 0.0, transformer.tap_ratio
+                    )
                 elif from_conn == "grounded_wye" and to_conn == "delta":
                     z_total = complex(impedance) + 3 * complex(transformer.from_neutral_impedance)
                     y_total = impedance_admittance(z_total.real, z_total.imag)
-                    ybus[from_eq - 1, from_eq - 1] += y_total
+                    ybus[from_eq - 1, from_eq - 1] += y_total / (transformer.tap_ratio ** 2)
                 elif from_conn == "delta" and to_conn == "grounded_wye":
                     z_total = complex(impedance) + 3 * complex(transformer.to_neutral_impedance)
                     y_total = impedance_admittance(z_total.real, z_total.imag)
@@ -178,16 +183,19 @@ def build_sequence_ybus(
         if sequence == "zero" and mode == "grounded_wye_delta":
             # Legacy simplified mode: zero-sequence current returns through
             # the grounded neutral on the from side; no transfer to to_bus.
-            ybus[from_eq - 1, from_eq - 1] += y
+            ybus[from_eq - 1, from_eq - 1] += y / (transformer.tap_ratio ** 2)
         elif sequence == "zero":
-            # Clock displacement does not rotate zero-sequence quantities.
-            stamp_two_node(ybus, from_eq, to_eq, y)
+            # Zero sequence is not phase-shifted; through-mode still observes
+            # the magnitude tap on the from side.
+            _stamp_with_phase_displacement(
+                ybus, from_eq, to_eq, y, 0.0, transformer.tap_ratio
+            )
         else:
             phase = _clock_displacement_rad(transformer.vector_group_clock)
             if sequence == "negative":
                 phase = -phase
             _stamp_with_phase_displacement(
-                ybus, from_eq, to_eq, y, phase
+                ybus, from_eq, to_eq, y, phase, transformer.tap_ratio
             )
 
     return ybus
