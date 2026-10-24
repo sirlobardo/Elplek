@@ -65,6 +65,16 @@ def build_ybus(network: Network) -> NDArray[np.complex128]:
         downstream = 0 if branch.to_bus == 0 else index[branch.to_bus] + 1
         stamp_two_node(ybus, upstream, downstream, y)
 
+        # Nominal-pi line model: the declared total charging admittance is
+        # divided equally between the two ends. A grounded end has no row.
+        half_shunt = complex(branch.shunt_admittance) / 2
+        if branch.from_bus != 0:
+            k = index[branch.from_bus]
+            ybus[k, k] += half_shunt
+        if branch.to_bus != 0:
+            k = index[branch.to_bus]
+            ybus[k, k] += half_shunt
+
     for transformer in network.transformers:
         y = impedance_admittance(
             complex(transformer.positive_sequence_impedance).real,
@@ -122,6 +132,30 @@ def build_sequence_ybus(
         upstream = 0 if branch.from_bus == 0 else index[branch.from_bus] + 1
         downstream = 0 if branch.to_bus == 0 else index[branch.to_bus] + 1
         stamp_two_node(ybus, upstream, downstream, y)
+
+        if sequence == "positive":
+            line_shunt = branch.shunt_admittance
+        elif sequence == "negative":
+            line_shunt = branch.negative_sequence_shunt_admittance
+            if line_shunt is None:
+                line_shunt = branch.shunt_admittance
+        else:
+            line_shunt = branch.zero_sequence_shunt_admittance
+            if line_shunt is None:
+                if branch.shunt_admittance != 0j:
+                    label = branch.name or f"{branch.from_bus}-{branch.to_bus}"
+                    raise ValueError(
+                        f"Branch {label} has no zero-sequence shunt admittance"
+                    )
+                line_shunt = 0j
+
+        half_shunt = complex(line_shunt) / 2
+        if branch.from_bus != 0:
+            k = index[branch.from_bus]
+            ybus[k, k] += half_shunt
+        if branch.to_bus != 0:
+            k = index[branch.to_bus]
+            ybus[k, k] += half_shunt
 
     for transformer in network.transformers:
         if sequence == "positive":
