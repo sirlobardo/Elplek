@@ -47,12 +47,13 @@ def _stamp_with_phase_displacement(
 
 
 def build_ybus(network: Network) -> NDArray[np.complex128]:
-    """Build the nodal admittance matrix for all series-impedance branches.
+    """Build conventional nodal admittance matrix using nominal-pi branches.
 
     Ground is represented by terminal ID 0 and has no matrix row/column.
-    Matrix ordering follows network.buses insertion order. Series branches,
-    transformer positive-sequence impedances, magnitude taps, configured
-    vector-group phase displacement, and bus shunts are included. Mutual
+    Branch shunt_admittance is the total line charging admittance and is split
+    equally between both terminal buses. Matrix ordering follows bus insertion
+    order. Transformer positive-sequence impedances, magnitude taps, vector
+    group phase displacement and independent bus shunts are included. Mutual
     coupling and IEC peak corrections are not included.
     """
     n = len(network.buses)
