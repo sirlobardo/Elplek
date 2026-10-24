@@ -25,6 +25,12 @@ class Branch:
     If negative_sequence_impedance is omitted, the positive-sequence
     impedance is used as an explicit engineering approximation. Zero-sequence
     impedance must be supplied before a zero-sequence matrix can be assembled.
+
+    shunt_admittance is the total positive-sequence line charging admittance,
+    divided equally between the two terminals (nominal-pi model). Negative
+    shunt admittance falls back to positive when omitted. If positive shunt
+    admittance is nonzero, zero_sequence_shunt_admittance must be supplied
+    before a zero-sequence matrix is assembled.
     """
 
     from_bus: int
@@ -34,8 +40,21 @@ class Branch:
     name: str = ""
     negative_sequence_impedance: complex | None = None
     zero_sequence_impedance: complex | None = None
+    shunt_admittance: complex = 0j
+    negative_sequence_shunt_admittance: complex | None = None
+    zero_sequence_shunt_admittance: complex | None = None
 
     def __post_init__(self) -> None:
+        shunt_values = [self.shunt_admittance]
+        if self.negative_sequence_shunt_admittance is not None:
+            shunt_values.append(self.negative_sequence_shunt_admittance)
+        if self.zero_sequence_shunt_admittance is not None:
+            shunt_values.append(self.zero_sequence_shunt_admittance)
+        if any(
+            not (isfinite(complex(value).real) and isfinite(complex(value).imag))
+            for value in shunt_values
+        ):
+            raise ValueError("Branch shunt admittances must be finite complex numbers")
         if self.from_bus < 0 or self.to_bus < 0:
             raise ValueError("Branch terminal IDs cannot be negative")
         if self.from_bus == 0 and self.to_bus == 0:
