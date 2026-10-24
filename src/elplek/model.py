@@ -111,9 +111,9 @@ class Transformer:
             raise ValueError("Both transformer winding connections must be specified together")
         if self.from_neutral_impedance.real < 0 or self.to_neutral_impedance.real < 0:
             raise ValueError("Neutral impedance resistance cannot be negative")
-        if self.from_connection != "grounded_wye" and self.from_neutral_impedance != 0j:
+        if self.from_neutral_impedance != 0j and self.from_connection != "grounded_wye":
             raise ValueError("from_neutral_impedance requires grounded_wye connection")
-        if self.to_connection != "grounded_wye" and self.to_neutral_impedance != 0j:
+        if self.to_neutral_impedance != 0j and self.to_connection != "grounded_wye":
             raise ValueError("to_neutral_impedance requires grounded_wye connection")
 
 
