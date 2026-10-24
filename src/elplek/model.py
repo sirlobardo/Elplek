@@ -34,12 +34,27 @@ class Branch:
             raise ValueError("A branch cannot connect ground to ground")
 
 
+@dataclass(frozen=True, slots=True)
+class Source:
+    """Single-phase equivalent voltage source with series impedance."""
+
+    bus_id: int
+    voltage: complex
+    impedance: complex
+    name: str = ""
+
+    def __post_init__(self) -> None:
+        if self.bus_id <= 0:
+            raise ValueError("Source bus_id must be positive")
+
+
 @dataclass(slots=True)
 class Network:
     """Network with bus IDs independent of matrix row ordering."""
 
     buses: list[Bus] = field(default_factory=list)
     branches: list[Branch] = field(default_factory=list)
+    sources: list[Source] = field(default_factory=list)
 
     def add_bus(self, bus: Bus) -> None:
         if any(existing.id == bus.id for existing in self.buses):
@@ -52,6 +67,11 @@ class Network:
             if terminal != 0 and terminal not in known_ids:
                 raise ValueError(f"Branch references unknown bus id: {terminal}")
         self.branches.append(branch)
+
+    def add_source(self, source: Source) -> None:
+        if source.bus_id not in {bus.id for bus in self.buses}:
+            raise ValueError(f"Source references unknown bus id: {source.bus_id}")
+        self.sources.append(source)
 
     @property
     def bus_index(self) -> dict[int, int]:
