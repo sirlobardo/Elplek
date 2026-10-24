@@ -70,3 +70,40 @@ def test_parallel_sources_with_different_impedances_match_thevenin_sum():
     np.testing.assert_allclose(result.source_currents["source_b"], expected_b)
     np.testing.assert_allclose(result.fault_current, expected_a + expected_b)
 
+def test_fault_impedance_reduces_fault_current():
+    network = Network()
+    network.add_bus(Bus(1, "Fault bus"))
+    network.add_source(Source(1, 100 + 0j, 1 + 0j, "grid"))
+
+    result = solve_short_circuit(network, 1, fault_impedance=2 + 0j)
+
+    np.testing.assert_allclose(result.fault_current, 100 / (1 + 2))
+    np.testing.assert_allclose(result.source_currents["grid"], result.fault_current)
+    np.testing.assert_allclose(result.bus_voltages[1], result.fault_current * 2)
+
+
+def test_complex_fault_impedance_matches_series_equivalent():
+    network = Network()
+    network.add_bus(Bus(1, "Source"))
+    network.add_bus(Bus(2, "Fault"))
+    network.add_branch(Branch(1, 2, 0.3, 0.4))
+    network.add_source(Source(1, 120 + 0j, 0.2 + 0.6j, "utility"))
+    fault_impedance = 0.5 + 0.25j
+
+    result = solve_short_circuit(network, 2, fault_impedance=fault_impedance)
+    expected = 120 / ((0.2 + 0.6j) + (0.3 + 0.4j) + fault_impedance)
+
+    np.testing.assert_allclose(result.fault_current, expected)
+    np.testing.assert_allclose(result.bus_voltages[2], expected * fault_impedance)
+
+
+def test_zero_fault_impedance_preserves_bolted_fault_result():
+    network = Network()
+    network.add_bus(Bus(1, "Fault bus"))
+    network.add_source(Source(1, 100 + 0j, 1 + 1j, "grid"))
+
+    default_result = solve_short_circuit(network, 1)
+    explicit_zero_result = solve_short_circuit(network, 1, fault_impedance=0j)
+
+    np.testing.assert_allclose(explicit_zero_result.fault_current, default_result.fault_current)
+
