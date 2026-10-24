@@ -7,7 +7,7 @@ from .impedance import (
     stamp_two_node,
 )
 from .mna import stamp_short_circuit, stamp_source
-from .model import Branch, Bus, Network, Source, Transformer
+from .model import Branch, Bus, Network, Shunt, Source, Transformer
 from .short_circuit import ShortCircuitResult, solve_short_circuit
 from .sequence import SequenceFaultResult, solve_sequence_fault
 from .sequence_network import SequenceThevenin, calculate_sequence_thevenin, solve_network_fault
@@ -23,6 +23,7 @@ __all__ = [
     "ShortCircuitResult",
     "SingularSystemError",
     "Source",
+    "Shunt",
     "Transformer",
     "SequenceFaultResult",
     "SequenceThevenin",
