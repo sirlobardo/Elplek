@@ -130,9 +130,9 @@ def build_sequence_ybus(
 
             if transformer.from_connection is not None:
                 # Explicit winding connections take precedence over the legacy
-                # zero_sequence_mode. This is a simplified sequence model:
-                # winding/core construction and vector-group phase displacement
-                # are not represented.
+                # zero_sequence_mode. The zero-sequence connection model remains
+                # simplified; clock displacement is applied only to positive
+                # and negative sequence networks.
                 from_conn = transformer.from_connection
                 to_conn = transformer.to_connection
                 if from_conn == "ungrounded_wye" or to_conn == "ungrounded_wye":
