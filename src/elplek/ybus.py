@@ -88,6 +88,45 @@ def build_sequence_ybus(
         else:
             mode = transformer.zero_sequence_mode
             impedance = transformer.zero_sequence_impedance
+            from_eq = index[transformer.from_bus] + 1
+            to_eq = index[transformer.to_bus] + 1
+
+            if transformer.from_connection is not None:
+                # Explicit winding connections take precedence over the legacy
+                # zero_sequence_mode. This is a simplified sequence model:
+                # winding/core construction and vector-group phase displacement
+                # are not represented.
+                from_conn = transformer.from_connection
+                to_conn = transformer.to_connection
+                if from_conn == "ungrounded_wye" or to_conn == "ungrounded_wye":
+                    continue
+                if from_conn == "delta" and to_conn == "delta":
+                    continue
+                if impedance is None:
+                    raise ValueError(
+                        f"Transformer {transformer.name or transformer.from_bus} "
+                        "needs zero-sequence impedance for its winding connections"
+                    )
+
+                y = impedance_admittance(complex(impedance).real, complex(impedance).imag)
+                if from_conn == "grounded_wye" and to_conn == "grounded_wye":
+                    z_total = (
+                        complex(impedance)
+                        + 3 * complex(transformer.from_neutral_impedance)
+                        + 3 * complex(transformer.to_neutral_impedance)
+                    )
+                    y_total = impedance_admittance(z_total.real, z_total.imag)
+                    stamp_two_node(ybus, from_eq, to_eq, y_total)
+                elif from_conn == "grounded_wye" and to_conn == "delta":
+                    z_total = complex(impedance) + 3 * complex(transformer.from_neutral_impedance)
+                    y_total = impedance_admittance(z_total.real, z_total.imag)
+                    ybus[from_eq - 1, from_eq - 1] += y_total
+                elif from_conn == "delta" and to_conn == "grounded_wye":
+                    z_total = complex(impedance) + 3 * complex(transformer.to_neutral_impedance)
+                    y_total = impedance_admittance(z_total.real, z_total.imag)
+                    ybus[to_eq - 1, to_eq - 1] += y_total
+                continue
+
             if mode == "blocked":
                 continue
             if impedance is None:
@@ -100,8 +139,8 @@ def build_sequence_ybus(
         from_eq = index[transformer.from_bus] + 1
         to_eq = index[transformer.to_bus] + 1
         if sequence == "zero" and mode == "grounded_wye_delta":
-            # Zero-sequence current returns through the grounded neutral on
-            # the from side; the delta side is isolated from zero sequence.
+            # Legacy simplified mode: zero-sequence current returns through
+            # the grounded neutral on the from side; no transfer to to_bus.
             ybus[from_eq - 1, from_eq - 1] += y
         else:
             stamp_two_node(ybus, from_eq, to_eq, y)
