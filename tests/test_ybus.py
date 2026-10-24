@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from elplek.model import Branch, Bus, Network
+from elplek.model import Branch, Bus, Network, Transformer
 from elplek.ybus import build_sequence_ybus, build_ybus
 
 
@@ -102,3 +102,64 @@ def test_sequence_ybus_assembles_zero_sequence_and_grounded_branch():
 def test_sequence_ybus_rejects_unknown_sequence():
     with pytest.raises(ValueError, match="sequence must"):
         build_sequence_ybus(Network(), "negative-sequence")
+
+
+def test_transformer_stamps_positive_and_negative_sequence():
+    network = Network()
+    network.add_bus(Bus(1))
+    network.add_bus(Bus(2))
+    network.add_transformer(Transformer(
+        1, 2, 0.1 + 0.2j, 0.15 + 0.25j,
+        zero_sequence_impedance=0.3 + 0.4j,
+        zero_sequence_mode="through",
+    ))
+
+    y1 = 1 / (0.1 + 0.2j)
+    y2 = 1 / (0.15 + 0.25j)
+    np.testing.assert_allclose(
+        build_sequence_ybus(network, "positive"),
+        [[y1, -y1], [-y1, y1]],
+    )
+    np.testing.assert_allclose(
+        build_sequence_ybus(network, "negative"),
+        [[y2, -y2], [-y2, y2]],
+    )
+
+
+def test_transformer_blocked_zero_sequence_does_not_connect_buses():
+    network = Network()
+    network.add_bus(Bus(1))
+    network.add_bus(Bus(2))
+    network.add_transformer(Transformer(
+        1, 2, 0.1 + 0.2j, 0.1 + 0.2j,
+        zero_sequence_mode="blocked",
+    ))
+
+    np.testing.assert_allclose(build_sequence_ybus(network, "zero"), np.zeros((2, 2)))
+
+
+def test_transformer_grounded_wye_delta_stamps_zero_sequence_shunt_on_from_side():
+    network = Network()
+    network.add_bus(Bus(1))
+    network.add_bus(Bus(2))
+    z0 = 0.3 + 0.4j
+    network.add_transformer(Transformer(
+        1, 2, 0.1 + 0.2j, 0.1 + 0.2j,
+        zero_sequence_impedance=z0,
+        zero_sequence_mode="grounded_wye_delta",
+    ))
+
+    expected = np.array([[1 / z0, 0j], [0j, 0j]])
+    np.testing.assert_allclose(build_sequence_ybus(network, "zero"), expected)
+
+
+def test_transformer_rejects_missing_zero_sequence_impedance_for_through_mode():
+    with pytest.raises(ValueError, match="zero-sequence impedance"):
+        Transformer(1, 2, 0.1j, 0.1j, zero_sequence_mode="through")
+
+
+def test_network_rejects_transformer_with_unknown_bus():
+    network = Network()
+    network.add_bus(Bus(1))
+    with pytest.raises(ValueError, match="unknown bus"):
+        network.add_transformer(Transformer(1, 2, 0.1j, 0.1j))
