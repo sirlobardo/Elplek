@@ -82,6 +82,10 @@ class Transformer:
     zero_sequence_impedance: complex | None = None
     zero_sequence_mode: str = "blocked"
     name: str = ""
+    from_connection: str | None = None
+    to_connection: str | None = None
+    from_neutral_impedance: complex = 0j
+    to_neutral_impedance: complex = 0j
 
     def __post_init__(self) -> None:
         if self.from_bus <= 0 or self.to_bus <= 0:
@@ -94,6 +98,23 @@ class Transformer:
             )
         if self.zero_sequence_mode != "blocked" and self.zero_sequence_impedance is None:
             raise ValueError("Transformer zero-sequence impedance is required for this mode")
+        valid_connections = {"grounded_wye", "ungrounded_wye", "delta"}
+        for label, connection in (
+            ("from_connection", self.from_connection),
+            ("to_connection", self.to_connection),
+        ):
+            if connection is not None and connection not in valid_connections:
+                raise ValueError(
+                    f"{label} must be 'grounded_wye', 'ungrounded_wye', or 'delta'"
+                )
+        if (self.from_connection is None) != (self.to_connection is None):
+            raise ValueError("Both transformer winding connections must be specified together")
+        if self.from_neutral_impedance.real < 0 or self.to_neutral_impedance.real < 0:
+            raise ValueError("Neutral impedance resistance cannot be negative")
+        if self.from_connection != "grounded_wye" and self.from_neutral_impedance != 0j:
+            raise ValueError("from_neutral_impedance requires grounded_wye connection")
+        if self.to_connection != "grounded_wye" and self.to_neutral_impedance != 0j:
+            raise ValueError("to_neutral_impedance requires grounded_wye connection")
 
 
 @dataclass(slots=True)
