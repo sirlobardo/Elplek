@@ -27,6 +27,7 @@ class SequenceFaultResult:
     zero_current: complex
     fault_current: complex
     phase_currents: PhaseCurrents
+    phase_voltages: PhaseCurrents
 
 
 def solve_sequence_fault(
@@ -51,22 +52,17 @@ def solve_sequence_fault(
 
     if fault_type == "three_phase":
         i1 = voltage / (z1 + zf)
-        currents = sequence_to_phase_currents(0j, i1, 0j)
-        return SequenceFaultResult(i1, 0j, 0j, i1, currents)
-
-    if fault_type == "single_line_to_ground":
+        i2 = i0 = 0j
+        fault_current = i1
+    elif fault_type == "single_line_to_ground":
         i0 = voltage / (z1 + z2 + z0 + 3 * zf)
-        currents = sequence_to_phase_currents(i0, i0, i0)
-        return SequenceFaultResult(i0, i0, i0, 3 * i0, currents)
-
-    if fault_type == "line_to_line":
+        i1 = i2 = i0
+        fault_current = 3 * i0
+    elif fault_type == "line_to_line":
         i1 = voltage / (z1 + z2 + zf)
-        i2 = -i1
-        ib = complex(0, -(3**0.5)) * i1
-        currents = sequence_to_phase_currents(0j, i1, i2)
-        return SequenceFaultResult(i1, i2, 0j, ib, currents)
-
-    if fault_type == "double_line_to_ground":
+        i2, i0 = -i1, 0j
+        fault_current = complex(0, -(3**0.5)) * i1
+    elif fault_type == "double_line_to_ground":
         z0f = z0 + 3 * zf
         parallel_denominator = z2 + z0f
         if parallel_denominator == 0:
@@ -75,7 +71,13 @@ def solve_sequence_fault(
         i1 = voltage / (z1 + parallel)
         i2 = -i1 * z0f / parallel_denominator
         i0 = -i1 * z2 / parallel_denominator
-        currents = sequence_to_phase_currents(i0, i1, i2)
-        return SequenceFaultResult(i1, i2, i0, 3 * i0, currents)
+        fault_current = 3 * i0
+    else:
+        raise ValueError(f"Unsupported fault type: {fault_type!r}")
 
-    raise ValueError(f"Unsupported fault type: {fault_type!r}")
+    currents = sequence_to_phase_currents(i0, i1, i2)
+    v1 = voltage - z1 * i1
+    v2 = -z2 * i2
+    v0 = -z0 * i0
+    phase_voltages = sequence_to_phase_currents(v0, v1, v2)
+    return SequenceFaultResult(i1, i2, i0, fault_current, currents, phase_voltages)
