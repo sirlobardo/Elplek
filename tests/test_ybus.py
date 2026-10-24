@@ -378,3 +378,24 @@ def test_vector_group_clock_12_represents_zero_phase_displacement():
         build_ybus(network),
         [[y, -y], [-y, y]],
     )
+
+
+
+@pytest.mark.parametrize(
+    ("from_connection", "to_connection", "clock"),
+    [
+        ("grounded_wye", "grounded_wye", 11),
+        ("grounded_wye", "delta", 12),
+        ("delta", "delta", 1),
+    ],
+)
+def test_transformer_rejects_clock_parity_inconsistent_with_windings(
+    from_connection, to_connection, clock
+):
+    with pytest.raises(ValueError, match="parity is inconsistent"):
+        Transformer(
+            1, 2, 0.1j, 0.1j,
+            from_connection=from_connection,
+            to_connection=to_connection,
+            vector_group_clock=clock,
+        )
