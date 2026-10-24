@@ -70,9 +70,16 @@ def stamp_short_circuit(
     fault_bus_eq: int,
     current_eq: int,
     voltage: complex = 0j,
+    fault_impedance: complex = 0j,
     iec_mode: bool = False,
 ) -> None:
-    """Stamp the single-fault equations from Elplek Shortmat."""
+    """Stamp a single-fault equation.
+
+    In conventional mode, fault_impedance is the impedance from the faulted
+    bus to ground. The auxiliary-current equation is V_fault - Zf*If = voltage.
+    IEC mode retains Elplek Shortmat's voltage-source constraint; fault_impedance
+    is not applied in that mode.
+    """
     if matrix.ndim != 2 or matrix.shape[0] != matrix.shape[1]:
         raise ValueError("Coefficient matrix must be square")
     if rhs.ndim != 1 or rhs.size != matrix.shape[0]:
@@ -91,5 +98,5 @@ def stamp_short_circuit(
             matrix[fault_bus_eq - 1, current_eq - 1] + 1,
         )
         _put(matrix, current_eq, fault_bus_eq, 1 + 0j)
-        _put(matrix, current_eq, current_eq, 0j)
+        _put(matrix, current_eq, current_eq, -complex(fault_impedance))
         _put_rhs(rhs, current_eq, voltage)
