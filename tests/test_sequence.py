@@ -59,3 +59,34 @@ def test_unknown_fault_type_rejected():
         solve_sequence_fault(
             "invalid", phase_voltage=120, z1=1, z2=1,
         )
+
+
+def test_fault_result_includes_phase_currents_for_single_line_ground():
+    result = solve_sequence_fault(
+        "single_line_to_ground", phase_voltage=120,
+        z1=1 + 0j, z2=2 + 0j, z0=3 + 0j,
+    )
+    ia, ib, ic = result.phase_currents
+    np.testing.assert_allclose(ia, result.fault_current)
+    np.testing.assert_allclose(ib, 0j, atol=1e-12)
+    np.testing.assert_allclose(ic, 0j, atol=1e-12)
+
+
+def test_fault_result_includes_phase_currents_for_line_to_line():
+    result = solve_sequence_fault(
+        "line_to_line", phase_voltage=120, z1=1, z2=2,
+    )
+    ia, ib, ic = result.phase_currents
+    np.testing.assert_allclose(ia, 0j, atol=1e-12)
+    np.testing.assert_allclose(ib, result.fault_current)
+    np.testing.assert_allclose(ib + ic, 0j, atol=1e-12)
+
+
+def test_three_phase_fault_result_has_balanced_phase_currents():
+    result = solve_sequence_fault(
+        "three_phase", phase_voltage=120, z1=1, z2=2,
+    )
+    ia, ib, ic = result.phase_currents
+    np.testing.assert_allclose(ia, result.fault_current)
+    np.testing.assert_allclose(abs(ia), abs(ib))
+    np.testing.assert_allclose(abs(ia), abs(ic))
