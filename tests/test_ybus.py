@@ -399,3 +399,125 @@ def test_transformer_rejects_clock_parity_inconsistent_with_windings(
             to_connection=to_connection,
             vector_group_clock=clock,
         )
+
+
+
+def test_transformer_tap_ratio_stamps_correct_positive_sequence_ybus():
+    network = Network()
+    network.add_bus(Bus(1))
+    network.add_bus(Bus(2))
+    z = 0.2 + 0.4j
+    tap = 1.1
+    y = 1 / z
+    network.add_transformer(Transformer(
+        1, 2, z, z,
+        tap_ratio=tap,
+    ))
+
+    expected = np.array([
+        [y / tap**2, -y / tap],
+        [-y / tap, y],
+    ])
+    np.testing.assert_allclose(build_ybus(network), expected)
+    np.testing.assert_allclose(
+        build_sequence_ybus(network, "positive"),
+        expected,
+    )
+
+
+def test_transformer_tap_ratio_applies_to_negative_sequence_ybus():
+    network = Network()
+    network.add_bus(Bus(1))
+    network.add_bus(Bus(2))
+    z2 = 0.3 + 0.6j
+    tap = 0.9
+    y2 = 1 / z2
+    network.add_transformer(Transformer(
+        1, 2, 0.2 + 0.4j, z2,
+        tap_ratio=tap,
+    ))
+
+    expected = np.array([
+        [y2 / tap**2, -y2 / tap],
+        [-y2 / tap, y2],
+    ])
+    np.testing.assert_allclose(
+        build_sequence_ybus(network, "negative"),
+        expected,
+    )
+
+
+def test_transformer_tap_ratio_combines_with_vector_group_phase_shift():
+    network = Network()
+    network.add_bus(Bus(1))
+    network.add_bus(Bus(2))
+    z = 0.2 + 0.4j
+    tap = 1.1
+    y = 1 / z
+    delta = np.deg2rad(30.0)
+    network.add_transformer(Transformer(
+        1, 2, z, z,
+        from_connection="grounded_wye",
+        to_connection="delta",
+        vector_group_clock=11,
+        tap_ratio=tap,
+    ))
+
+    expected = np.array([
+        [y / tap**2, -y * np.exp(-1j * delta) / tap],
+        [-y * np.exp(1j * delta) / tap, y],
+    ])
+    np.testing.assert_allclose(build_ybus(network), expected)
+
+
+def test_transformer_tap_ratio_applies_to_zero_sequence_through_mode():
+    network = Network()
+    network.add_bus(Bus(1))
+    network.add_bus(Bus(2))
+    z0 = 0.2 + 0.3j
+    tap = 1.2
+    y0 = 1 / z0
+    network.add_transformer(Transformer(
+        1, 2, 0.1j, 0.1j,
+        zero_sequence_impedance=z0,
+        zero_sequence_mode="through",
+        tap_ratio=tap,
+    ))
+
+    expected = np.array([
+        [y0 / tap**2, -y0 / tap],
+        [-y0 / tap, y0],
+    ])
+    np.testing.assert_allclose(
+        build_sequence_ybus(network, "zero"),
+        expected,
+    )
+
+
+def test_transformer_tap_ratio_scales_grounded_wye_delta_zero_sequence_shunt():
+    network = Network()
+    network.add_bus(Bus(1))
+    network.add_bus(Bus(2))
+    z0 = 0.2 + 0.3j
+    tap = 1.2
+    network.add_transformer(Transformer(
+        1, 2, 0.1j, 0.1j,
+        zero_sequence_impedance=z0,
+        from_connection="grounded_wye",
+        to_connection="delta",
+        tap_ratio=tap,
+    ))
+
+    np.testing.assert_allclose(
+        build_sequence_ybus(network, "zero"),
+        [[1 / z0 / tap**2, 0j], [0j, 0j]],
+    )
+
+
+@pytest.mark.parametrize(
+    "tap_ratio",
+    [0, -1, float("inf"), float("-inf"), float("nan"), True, "1.1"],
+)
+def test_transformer_rejects_invalid_tap_ratio(tap_ratio):
+    with pytest.raises(ValueError, match="tap_ratio must be a finite positive number"):
+        Transformer(1, 2, 0.1j, 0.1j, tap_ratio=tap_ratio)
