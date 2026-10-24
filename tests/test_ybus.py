@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 
 from elplek.model import Branch, Bus, Network
-from elplek.ybus import build_ybus
+from elplek.ybus import build_sequence_ybus, build_ybus
 
 
 def test_two_bus_network_builds_expected_ybus():
@@ -56,3 +56,49 @@ def test_unknown_branch_terminal_rejected():
 def test_ground_to_ground_branch_rejected():
     with pytest.raises(ValueError, match="ground to ground"):
         Branch(0, 0, 1.0, 0.0)
+
+
+def test_sequence_ybus_uses_branch_specific_negative_impedance():
+    network = Network()
+    network.add_bus(Bus(1))
+    network.add_bus(Bus(2))
+    network.add_branch(
+        Branch(1, 2, 1.0, 0.0, negative_sequence_impedance=2 + 0j)
+    )
+
+    np.testing.assert_allclose(
+        build_sequence_ybus(network, "negative"),
+        np.array([[0.5 + 0j, -0.5 + 0j], [-0.5 + 0j, 0.5 + 0j]]),
+    )
+
+
+def test_sequence_ybus_requires_zero_sequence_data():
+    network = Network()
+    network.add_bus(Bus(1))
+    network.add_bus(Bus(2))
+    network.add_branch(Branch(1, 2, 1.0, 0.0))
+
+    with pytest.raises(ValueError, match="zero-sequence impedance"):
+        build_sequence_ybus(network, "zero")
+
+
+def test_sequence_ybus_assembles_zero_sequence_and_grounded_branch():
+    network = Network()
+    network.add_bus(Bus(1))
+    network.add_bus(Bus(2))
+    network.add_branch(
+        Branch(1, 2, 1.0, 0.0, zero_sequence_impedance=4 + 0j)
+    )
+    network.add_branch(
+        Branch(2, 0, 1.0, 0.0, zero_sequence_impedance=2 + 0j)
+    )
+
+    np.testing.assert_allclose(
+        build_sequence_ybus(network, "zero"),
+        np.array([[0.25 + 0j, -0.25 + 0j], [-0.25 + 0j, 0.75 + 0j]]),
+    )
+
+
+def test_sequence_ybus_rejects_unknown_sequence():
+    with pytest.raises(ValueError, match="sequence must"):
+        build_sequence_ybus(Network(), "negative-sequence")
