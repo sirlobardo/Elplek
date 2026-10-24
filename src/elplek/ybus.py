@@ -51,9 +51,9 @@ def build_ybus(network: Network) -> NDArray[np.complex128]:
 
     Ground is represented by terminal ID 0 and has no matrix row/column.
     Matrix ordering follows network.buses insertion order. Series branches and
-    transformer positive-sequence impedances, magnitude taps, and configured
-    vector-group phase displacement are included. Shunts, mutual coupling and
-    IEC peak corrections are not included.
+    Transformer positive-sequence impedances, magnitude taps, configured
+    vector-group phase displacement, and bus shunts are included. Mutual
+    coupling and IEC peak corrections are not included.
     """
     n = len(network.buses)
     ybus = np.zeros((n, n), dtype=np.complex128)
@@ -79,7 +79,11 @@ def build_ybus(network: Network) -> NDArray[np.complex128]:
             transformer.tap_ratio,
         )
 
+    for shunt in network.shunts:
+        ybus[index[shunt.bus_id], index[shunt.bus_id]] += complex(shunt.admittance)
+
     return ybus
+
 
 def build_sequence_ybus(
     network: Network,
@@ -197,6 +201,23 @@ def build_sequence_ybus(
             _stamp_with_phase_displacement(
                 ybus, from_eq, to_eq, y, phase, transformer.tap_ratio
             )
+
+    for shunt in network.shunts:
+        if sequence == "positive":
+            admittance = shunt.admittance
+        elif sequence == "negative":
+            admittance = shunt.negative_sequence_admittance
+            if admittance is None:
+                admittance = shunt.admittance
+        else:
+            admittance = shunt.zero_sequence_admittance
+            if admittance is None:
+                label = shunt.name or f"bus {shunt.bus_id}"
+                raise ValueError(
+                    f"Shunt {label} has no zero-sequence admittance"
+                )
+        bus_index = index[shunt.bus_id]
+        ybus[bus_index, bus_index] += complex(admittance)
 
     return ybus
 
