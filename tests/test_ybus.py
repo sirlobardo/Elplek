@@ -163,3 +163,17 @@ def test_network_rejects_transformer_with_unknown_bus():
     network.add_bus(Bus(1))
     with pytest.raises(ValueError, match="unknown bus"):
         network.add_transformer(Transformer(1, 2, 0.1j, 0.1j))
+
+
+def test_positive_sequence_ybus_includes_transformer_impedance():
+    network = Network()
+    network.add_bus(Bus(1))
+    network.add_bus(Bus(2))
+    network.add_transformer(Transformer(
+        1, 2, 0.2 + 0.4j, 0.3 + 0.5j,
+    ))
+    y = 1 / (0.2 + 0.4j)
+    np.testing.assert_allclose(
+        build_ybus(network),
+        [[y, -y], [-y, y]],
+    )
