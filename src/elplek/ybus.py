@@ -7,6 +7,7 @@ from numpy.typing import NDArray
 
 from .impedance import impedance_admittance, stamp_two_node
 from .model import Network
+from .impedance import impedance_admittance
 
 
 def build_ybus(network: Network) -> NDArray[np.complex128]:
@@ -65,6 +66,34 @@ def build_sequence_ybus(
         upstream = 0 if branch.from_bus == 0 else index[branch.from_bus] + 1
         downstream = 0 if branch.to_bus == 0 else index[branch.to_bus] + 1
         stamp_two_node(ybus, upstream, downstream, y)
+
+    for transformer in network.transformers:
+        if sequence == "positive":
+            impedance = transformer.positive_sequence_impedance
+            mode = "through"
+        elif sequence == "negative":
+            impedance = transformer.negative_sequence_impedance
+            mode = "through"
+        else:
+            mode = transformer.zero_sequence_mode
+            impedance = transformer.zero_sequence_impedance
+            if mode == "blocked":
+                continue
+            if impedance is None:
+                raise ValueError(
+                    f"Transformer {transformer.name or transformer.from_bus} "
+                    "has no zero-sequence impedance"
+                )
+
+        y = impedance_admittance(complex(impedance).real, complex(impedance).imag)
+        from_eq = index[transformer.from_bus] + 1
+        to_eq = index[transformer.to_bus] + 1
+        if sequence == "zero" and mode == "grounded_wye_delta":
+            # Zero-sequence current returns through the grounded neutral on
+            # the from side; the delta side is isolated from zero sequence.
+            ybus[from_eq - 1, from_eq - 1] += y
+        else:
+            stamp_two_node(ybus, from_eq, to_eq, y)
 
     return ybus
 
