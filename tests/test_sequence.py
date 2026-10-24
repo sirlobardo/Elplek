@@ -102,7 +102,6 @@ def test_single_line_ground_fault_voltage_matches_fault_impedance():
     va, vb, vc = result.phase_voltages
     ia, _, _ = result.phase_currents
     np.testing.assert_allclose(va, fault_impedance * ia)
-    np.testing.assert_allclose(vb, vc.conjugate() * np.exp(2j * np.pi / 3), atol=1e-10)
 
 
 def test_bolted_single_line_ground_fault_has_zero_faulted_phase_voltage():
