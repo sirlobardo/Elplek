@@ -14,7 +14,7 @@ from .ybus import build_ybus
 
 @dataclass(frozen=True, slots=True)
 class ShortCircuitResult:
-    """Solved phasors for a single bolted fault."""
+    """Solved phasors for a single fault, including finite fault impedance."""
 
     bus_voltages: dict[int, complex]
     source_currents: dict[str, complex]
@@ -27,12 +27,18 @@ def solve_short_circuit(
     *,
     fault_impedance: complex = 0j,
 ) -> ShortCircuitResult:
-    """Solve a bolted fault using MNA and the network's single-phase equivalent.
+    """Solve one fault using MNA and the positive-sequence-style equivalent.
 
-    The network must contain at least one source. This initial API supports
-    series R+jX branches, ideal ground, voltage sources with series impedance,
-    and a fault impedance from the faulted bus to ground. It does not yet model
-    IEC voltage factors, sequence networks, transformers, or loads.
+    The network must contain at least one source. The conventional Y-bus
+    supports series R+jX branches, two-winding transformer series equivalents
+    (including magnitude taps and clock phase shift), and constant shunt
+    admittances. Sources are represented by voltage behind series impedance;
+    fault_impedance connects the faulted bus to ground.
+
+    This is not an asymmetrical-fault sequence solver or a full IEC 60909
+    calculation. It does not run load flow, apply IEC voltage factors, or model
+    detailed transformer winding/zero-sequence behavior in this single-phase
+    equivalent.
     """
     if not network.buses:
         raise ValueError("Network must contain at least one bus")
