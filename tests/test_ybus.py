@@ -277,3 +277,104 @@ def test_transformer_rejects_neutral_impedance_on_delta_winding():
             to_connection="delta",
             to_neutral_impedance=0.01j,
         )
+
+
+
+def test_vector_group_clock_11_applies_positive_sequence_phase_displacement():
+    network = Network()
+    network.add_bus(Bus(1))
+    network.add_bus(Bus(2))
+    z = 0.2 + 0.4j
+    y = 1 / z
+    delta = np.deg2rad(30.0)
+    network.add_transformer(Transformer(
+        1, 2, z, z,
+        zero_sequence_impedance=0.5 + 0.2j,
+        from_connection="grounded_wye",
+        to_connection="delta",
+        vector_group_clock=11,
+    ))
+
+    expected = np.array([
+        [y, -y * np.exp(-1j * delta)],
+        [-y * np.exp(1j * delta), y],
+    ])
+    np.testing.assert_allclose(build_ybus(network), expected)
+    np.testing.assert_allclose(
+        build_sequence_ybus(network, "positive"),
+        expected,
+    )
+
+
+def test_vector_group_phase_displacement_reverses_for_negative_sequence():
+    network = Network()
+    network.add_bus(Bus(1))
+    network.add_bus(Bus(2))
+    z2 = 0.3 + 0.6j
+    y2 = 1 / z2
+    delta = np.deg2rad(30.0)
+    network.add_transformer(Transformer(
+        1, 2, 0.2 + 0.4j, z2,
+        zero_sequence_impedance=0.5 + 0.2j,
+        from_connection="grounded_wye",
+        to_connection="delta",
+        vector_group_clock=11,
+    ))
+
+    expected = np.array([
+        [y2, -y2 * np.exp(1j * delta)],
+        [-y2 * np.exp(-1j * delta), y2],
+    ])
+    np.testing.assert_allclose(
+        build_sequence_ybus(network, "negative"),
+        expected,
+    )
+
+
+def test_vector_group_clock_does_not_rotate_zero_sequence_network():
+    network = Network()
+    network.add_bus(Bus(1))
+    network.add_bus(Bus(2))
+    z0 = 0.2 + 0.3j
+    network.add_transformer(Transformer(
+        1, 2, 0.1 + 0.2j, 0.1 + 0.2j,
+        zero_sequence_impedance=z0,
+        from_connection="grounded_wye",
+        to_connection="delta",
+        vector_group_clock=11,
+    ))
+
+    np.testing.assert_allclose(
+        build_sequence_ybus(network, "zero"),
+        [[1 / z0, 0j], [0j, 0j]],
+    )
+
+
+@pytest.mark.parametrize("clock", [-1, 13, 1.5, True])
+def test_transformer_rejects_invalid_vector_group_clock(clock):
+    with pytest.raises(ValueError, match="vector_group_clock"):
+        Transformer(1, 2, 0.1j, 0.1j, vector_group_clock=clock)
+
+
+def test_nonzero_vector_group_clock_requires_explicit_connections():
+    with pytest.raises(ValueError, match="requires both winding connections"):
+        Transformer(1, 2, 0.1j, 0.1j, vector_group_clock=11)
+
+
+def test_vector_group_clock_12_represents_zero_phase_displacement():
+    network = Network()
+    network.add_bus(Bus(1))
+    network.add_bus(Bus(2))
+    z = 0.2 + 0.4j
+    network.add_transformer(Transformer(
+        1, 2, z, z,
+        from_connection="grounded_wye",
+        to_connection="grounded_wye",
+        vector_group_clock=12,
+    ))
+
+    y = 1 / z
+    np.testing.assert_allclose(
+        build_ybus(network),
+        [[y, -y], [-y, y]],
+    )
