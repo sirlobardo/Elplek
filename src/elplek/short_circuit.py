@@ -21,13 +21,18 @@ class ShortCircuitResult:
     fault_current: complex
 
 
-def solve_short_circuit(network: Network, fault_bus_id: int) -> ShortCircuitResult:
+def solve_short_circuit(
+    network: Network,
+    fault_bus_id: int,
+    *,
+    fault_impedance: complex = 0j,
+) -> ShortCircuitResult:
     """Solve a bolted fault using MNA and the network's single-phase equivalent.
 
     The network must contain at least one source. This initial API supports
-    series R+jX branches, ideal ground, and voltage sources with series
-    impedance. It does not yet model IEC voltage factors, sequence networks,
-    transformers, loads, or fault impedance.
+    series R+jX branches, ideal ground, voltage sources with series impedance,
+    and a fault impedance from the faulted bus to ground. It does not yet model
+    IEC voltage factors, sequence networks, transformers, or loads.
     """
     if not network.buses:
         raise ValueError("Network must contain at least one bus")
@@ -63,6 +68,7 @@ def solve_short_circuit(network: Network, fault_bus_id: int) -> ShortCircuitResu
         rhs,
         fault_bus_eq=fault_bus_eq,
         current_eq=fault_current_eq,
+        fault_impedance=complex(fault_impedance),
     )
     solution = solve_linear_system(matrix, rhs)
 
