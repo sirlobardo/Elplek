@@ -87,3 +87,14 @@ negative-sequence admittance defaults to positive sequence if omitted. For
 zero-sequence assembly, provide `zero_sequence_admittance` explicitly rather
 than assuming that the positive-sequence value is valid. Shunts are included
 in both the conventional `build_ybus` and `build_sequence_ybus` matrices.
+
+
+### Conventional short-circuit solver
+
+`solve_short_circuit(network, fault_bus_id, fault_impedance=...)` uses the
+conventional Y-bus with source equivalents and a single fault-current unknown.
+Consequently, transformer positive-sequence impedance, ideal magnitude taps,
+configured clock displacement, and bus shunts affect its result. This API
+remains a single-phase-equivalent solver; use `solve_network_fault` for the
+separate, simplified symmetrical-component fault path. Neither API is yet a
+certified implementation of IEC 60909.
