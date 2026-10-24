@@ -10,7 +10,7 @@ from .mna import stamp_short_circuit, stamp_source
 from .model import Branch, Bus, Network, Source
 from .short_circuit import ShortCircuitResult, solve_short_circuit
 from .sequence import SequenceFaultResult, solve_sequence_fault
-from .sequence_network import SequenceThevenin, calculate_sequence_thevenin
+from .sequence_network import SequenceThevenin, calculate_sequence_thevenin, solve_network_fault
 from .solver import SingularSystemError, solve_linear_system
 from .ybus import build_sequence_ybus, build_ybus
 
@@ -30,6 +30,7 @@ __all__ = [
     "complex_divide",
     "impedance_admittance",
     "solve_linear_system",
+    "solve_network_fault",
     "solve_short_circuit",
     "solve_sequence_fault",
     "stamp_short_circuit",
