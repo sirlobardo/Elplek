@@ -16,3 +16,52 @@ Read the preserved original description of the program in the Wiki: https://gith
 Программа написана на Delphi 2 и с минимальными изменениями может быть скомпилирована в Delphi 3й версии. Если у Вас есть идеи как усовершенствовать исходный код для компиляции в Lazarus или в Delphi более свежих версии, пишите Ваши предложения.
 
 Перевод оригинального описания программы можно прочесть здесь: https://github.com/Sibiriak/Elplek/wiki/%D0%9E%D0%BF%D0%B8%D1%81%D0%B0%D0%BD%D0%B8%D0%B5-%D0%BF%D1%80%D0%BE%D0%B3%D1%80%D0%B0%D0%BC%D0%BC%D1%8B-%D0%BD%D0%B0-%D1%80%D1%83%D1%81%D1%81%D0%BA%D0%BE%D0%BC
+
+
+
+## Incremental Python port (`python-port`)
+
+The Python implementation is an incremental port and is not yet a drop-in
+replacement for the original Delphi program. Current transformer models support
+positive-, negative- and simplified zero-sequence equivalents, winding
+connection labels, neutral impedances, and an optional vector-group clock
+number.
+
+Example:
+
+```python
+from elplek.model import Network, Bus, Transformer
+from elplek.ybus import build_ybus, build_sequence_ybus
+
+network = Network()
+network.add_bus(Bus(1, "HV"))
+network.add_bus(Bus(2, "LV"))
+network.add_transformer(Transformer(
+    from_bus=1,
+    to_bus=2,
+    positive_sequence_impedance=0.01 + 0.08j,
+    negative_sequence_impedance=0.01 + 0.08j,
+    zero_sequence_impedance=0.02 + 0.10j,
+    from_connection="grounded_wye",
+    to_connection="delta",
+    vector_group_clock=11,
+))
+y_positive = build_ybus(network)
+y_negative = build_sequence_ybus(network, "negative")
+y_zero = build_sequence_ybus(network, "zero")
+```
+
+The clock number describes the phase displacement of the `to_bus` winding
+relative to `from_bus`: clock 11 means the to-side positive-sequence voltage
+leads by 30 degrees; clock 1 means it lags by 30 degrees. Clock 0 is the legacy
+no-shift default, while clock 12 is the explicit zero-displacement clock
+position. Negative-sequence phase displacement is reversed. Zero-sequence
+network behavior depends on the configured winding connections and neutral
+impedances; its simplified model does not encode all transformer core designs.
+
+Magnitude tap ratios, magnetizing branches, complete vector-group/terminal
+conventions, full transformer grounding details, load-flow equivalence, and
+complete IEC 60909 corrections remain outside the current implementation.
+The port is still under validation and should not yet be used as a certified
+replacement for the original program or an independently validated
+short-circuit study package.
