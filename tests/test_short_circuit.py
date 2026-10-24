@@ -42,3 +42,31 @@ def test_short_circuit_without_source_rejected():
     network.add_bus(Bus(1))
     with pytest.raises(ValueError, match="at least one source"):
         solve_short_circuit(network, 1)
+
+def test_parallel_sources_contribute_to_fault_current():
+    network = Network()
+    network.add_bus(Bus(1, "Fault bus"))
+    network.add_source(Source(1, 100 + 0j, 1 + 0j, "source_a"))
+    network.add_source(Source(1, 100 + 0j, 1 + 0j, "source_b"))
+
+    result = solve_short_circuit(network, 1)
+
+    np.testing.assert_allclose(result.fault_current, 200 + 0j)
+    np.testing.assert_allclose(result.source_currents["source_a"], 100 + 0j)
+    np.testing.assert_allclose(result.source_currents["source_b"], 100 + 0j)
+
+
+def test_parallel_sources_with_different_impedances_match_thevenin_sum():
+    network = Network()
+    network.add_bus(Bus(1, "Fault bus"))
+    network.add_source(Source(1, 100 + 0j, 1 + 1j, "source_a"))
+    network.add_source(Source(1, 80 + 0j, 2 + 0j, "source_b"))
+
+    result = solve_short_circuit(network, 1)
+    expected_a = (100 + 0j) / (1 + 1j)
+    expected_b = (80 + 0j) / 2
+
+    np.testing.assert_allclose(result.source_currents["source_a"], expected_a)
+    np.testing.assert_allclose(result.source_currents["source_b"], expected_b)
+    np.testing.assert_allclose(result.fault_current, expected_a + expected_b)
+
