@@ -87,12 +87,25 @@ class Transformer:
     to_connection: str | None = None
     from_neutral_impedance: complex = 0j
     to_neutral_impedance: complex = 0j
+    vector_group_clock: int = 0
 
     def __post_init__(self) -> None:
         if self.from_bus <= 0 or self.to_bus <= 0:
             raise ValueError("Transformer terminal IDs must be positive bus IDs")
         if self.from_bus == self.to_bus:
             raise ValueError("Transformer cannot connect a bus to itself")
+        if (
+            not isinstance(self.vector_group_clock, int)
+            or isinstance(self.vector_group_clock, bool)
+            or not 0 <= self.vector_group_clock <= 11
+        ):
+            raise ValueError("vector_group_clock must be an integer from 0 to 11")
+        if self.vector_group_clock != 0 and (
+            self.from_connection is None or self.to_connection is None
+        ):
+            raise ValueError(
+                "Nonzero vector_group_clock requires both winding connections"
+            )
         if self.zero_sequence_mode not in {"blocked", "through", "grounded_wye_delta"}:
             raise ValueError(
                 "zero_sequence_mode must be 'blocked', 'through', or 'grounded_wye_delta'"
