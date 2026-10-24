@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from elplek.model import Branch, Bus, Network, Source
+from elplek.model import Branch, Bus, Network, Shunt, Source
 from elplek.sequence_network import calculate_sequence_thevenin
 
 
@@ -89,3 +89,26 @@ def test_network_fault_solver_includes_branch_sequence_impedances():
 
     np.testing.assert_allclose(result.fault_current, expected)
 
+
+
+
+def test_sequence_thevenin_includes_shunt_admittance():
+    network = Network()
+    network.add_bus(Bus(1))
+    network.add_source(Source(
+        1, 120, 1 + 0j, "grid",
+        negative_sequence_impedance=2 + 0j,
+        zero_sequence_impedance=3 + 0j,
+    ))
+    network.add_shunt(Shunt(
+        1, 0.5 + 0j,
+        negative_sequence_admittance=0.5 + 0j,
+        zero_sequence_admittance=0.5 + 0j,
+        name="test shunt",
+    ))
+
+    result = calculate_sequence_thevenin(network, 1)
+    np.testing.assert_allclose(result.prefault_voltage, 80)
+    np.testing.assert_allclose(result.z1, 2 / 3)
+    np.testing.assert_allclose(result.z2, 1)
+    np.testing.assert_allclose(result.z0, 1.2)
