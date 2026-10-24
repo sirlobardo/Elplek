@@ -30,7 +30,7 @@ number.
 Example:
 
 ```python
-from elplek.model import Network, Bus, Transformer
+from elplek.model import Network, Bus, Shunt, Transformer
 from elplek.ybus import build_ybus, build_sequence_ybus
 
 network = Network()
@@ -46,6 +46,13 @@ network.add_transformer(Transformer(
     to_connection="delta",
     vector_group_clock=11,
     tap_ratio=1.05,  # ideal magnitude ratio on the from_bus side
+))
+network.add_shunt(Shunt(
+    bus_id=2,
+    admittance=0.0 + 0.04j,
+    negative_sequence_admittance=0.0 + 0.04j,
+    zero_sequence_admittance=0.0 + 0.0j,
+    name="LV capacitor bank",
 ))
 y_positive = build_ybus(network)
 y_negative = build_sequence_ybus(network, "negative")
@@ -69,3 +76,14 @@ current implementation.
 The port is still under validation and should not yet be used as a certified
 replacement for the original program or an independently validated
 short-circuit study package.
+
+
+### Bus shunts
+
+The `Shunt` model stamps a complex admittance directly onto the selected
+bus diagonal. Use admittance values in the same per-unit or physical-unit
+system as the rest of the network. Positive-sequence admittance is required;
+negative-sequence admittance defaults to positive sequence if omitted. For
+zero-sequence assembly, provide `zero_sequence_admittance` explicitly rather
+than assuming that the positive-sequence value is valid. Shunts are included
+in both the conventional `build_ybus` and `build_sequence_ybus` matrices.
