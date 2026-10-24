@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from elplek.model import Branch, Bus, Network, Source
+from elplek.model import Branch, Bus, Network, Shunt, Source
 from elplek.short_circuit import solve_short_circuit
 
 
@@ -107,3 +107,19 @@ def test_zero_fault_impedance_preserves_bolted_fault_result():
 
     np.testing.assert_allclose(explicit_zero_result.fault_current, default_result.fault_current)
 
+
+
+
+def test_short_circuit_includes_bus_shunt_admittance():
+    network = Network()
+    network.add_bus(Bus(1, "Fault bus"))
+    network.add_source(Source(1, 100 + 0j, 1 + 0j, "grid"))
+    network.add_shunt(Shunt(1, 0.5 + 0j, name="parallel load equivalent"))
+
+    result = solve_short_circuit(network, 1, fault_impedance=1 + 0j)
+
+    # Source current is (100 - 40)/1 = 60 A; the bus voltage and
+    # fault-branch current are 40 V and 40 A, respectively.
+    np.testing.assert_allclose(result.bus_voltages[1], 40 + 0j)
+    np.testing.assert_allclose(result.fault_current, 40 + 0j)
+    np.testing.assert_allclose(result.source_currents["grid"], 60 + 0j)
