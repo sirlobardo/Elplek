@@ -6,6 +6,7 @@ from dataclasses import dataclass
 import numpy as np
 
 from .model import Network
+from .sequence import FaultType, SequenceFaultResult, solve_sequence_fault
 from .ybus import build_sequence_ybus
 
 
@@ -76,3 +77,27 @@ def calculate_sequence_thevenin(network: Network, bus_id: int) -> SequenceTheven
     _, z2 = _equivalent(network, bus_id, "negative")
     _, z0 = _equivalent(network, bus_id, "zero")
     return SequenceThevenin(v1, z1, z2, z0)
+
+
+def solve_network_fault(
+    network: Network,
+    bus_id: int,
+    fault_type: FaultType,
+    *,
+    fault_impedance: complex = 0j,
+) -> SequenceFaultResult:
+    """Solve a common fault using sequence impedances derived from Network.
+
+    This uses a no-load prefault voltage from the positive-sequence source
+    network. It is not yet a full IEC 60909 calculation or load-flow-coupled
+    fault study.
+    """
+    equivalent = calculate_sequence_thevenin(network, bus_id)
+    return solve_sequence_fault(
+        fault_type,
+        phase_voltage=equivalent.prefault_voltage,
+        z1=equivalent.z1,
+        z2=equivalent.z2,
+        z0=equivalent.z0,
+        fault_impedance=fault_impedance,
+    )
