@@ -64,6 +64,36 @@ class Source:
 
 
 @dataclass(frozen=True, slots=True)
+class Shunt:
+    """Admittance connected from one bus to ground.
+
+    Positive-sequence admittance is required. Negative-sequence admittance
+    falls back to positive sequence when omitted. Zero-sequence admittance
+    must be specified before assembling a zero-sequence Y-bus.
+    """
+
+    bus_id: int
+    admittance: complex
+    name: str = ""
+    negative_sequence_admittance: complex | None = None
+    zero_sequence_admittance: complex | None = None
+
+    def __post_init__(self) -> None:
+        if self.bus_id <= 0:
+            raise ValueError("Shunt bus_id must be positive")
+        values = [self.admittance]
+        if self.negative_sequence_admittance is not None:
+            values.append(self.negative_sequence_admittance)
+        if self.zero_sequence_admittance is not None:
+            values.append(self.zero_sequence_admittance)
+        if any(
+            not (isfinite(complex(value).real) and isfinite(complex(value).imag))
+            for value in values
+        ):
+            raise ValueError("Shunt admittances must be finite complex numbers")
+
+
+@dataclass(frozen=True, slots=True)
 class Transformer:
     """Simplified two-winding transformer sequence equivalent.
 
@@ -160,6 +190,7 @@ class Network:
     branches: list[Branch] = field(default_factory=list)
     sources: list[Source] = field(default_factory=list)
     transformers: list[Transformer] = field(default_factory=list)
+    shunts: list[Shunt] = field(default_factory=list)
 
     def add_bus(self, bus: Bus) -> None:
         if any(existing.id == bus.id for existing in self.buses):
@@ -184,6 +215,11 @@ class Network:
             if terminal not in known_ids:
                 raise ValueError(f"Transformer references unknown bus id: {terminal}")
         self.transformers.append(transformer)
+
+    def add_shunt(self, shunt: Shunt) -> None:
+        if shunt.bus_id not in {bus.id for bus in self.buses}:
+            raise ValueError(f"Shunt references unknown bus id: {shunt.bus_id}")
+        self.shunts.append(shunt)
 
     @property
     def bus_index(self) -> dict[int, int]:
