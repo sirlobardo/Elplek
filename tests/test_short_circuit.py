@@ -141,3 +141,22 @@ def test_short_circuit_includes_transformer_series_impedance():
     expected = 100 / (1 + (0.5 + 0.5j) + 0.25)
 
     np.testing.assert_allclose(result.fault_current, expected)
+
+
+
+def test_short_circuit_includes_nominal_pi_line_charging_admittance():
+    network = Network()
+    network.add_bus(Bus(1, "Source side"))
+    network.add_bus(Bus(2, "Fault side"))
+    network.add_source(Source(1, 100 + 0j, 1 + 0j, "grid"))
+    network.add_branch(Branch(
+        1, 2, resistance=1.0, reactance=0.0,
+        shunt_admittance=0.0 + 2.0j,
+    ))
+
+    result = solve_short_circuit(network, 2, fault_impedance=1 + 0j)
+
+    # Nodal equations with j1 pu on each end of the line charging give
+    # V_fault = I_fault*Z_fault = 10 - j20 V.
+    np.testing.assert_allclose(result.bus_voltages[2], 10 - 20j)
+    np.testing.assert_allclose(result.fault_current, 10 - 20j)
