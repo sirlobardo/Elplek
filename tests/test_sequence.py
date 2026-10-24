@@ -90,3 +90,24 @@ def test_three_phase_fault_result_has_balanced_phase_currents():
     np.testing.assert_allclose(ia, result.fault_current)
     np.testing.assert_allclose(abs(ia), abs(ib))
     np.testing.assert_allclose(abs(ia), abs(ic))
+
+
+def test_single_line_ground_fault_voltage_matches_fault_impedance():
+    fault_impedance = 0.2 + 0.1j
+    result = solve_sequence_fault(
+        "single_line_to_ground", phase_voltage=120,
+        z1=0.4 + 0.5j, z2=0.3 + 0.4j, z0=0.6 + 0.7j,
+        fault_impedance=fault_impedance,
+    )
+    va, vb, vc = result.phase_voltages
+    ia, _, _ = result.phase_currents
+    np.testing.assert_allclose(va, fault_impedance * ia)
+    np.testing.assert_allclose(vb, vc.conjugate() * np.exp(2j * np.pi / 3), atol=1e-10)
+
+
+def test_bolted_single_line_ground_fault_has_zero_faulted_phase_voltage():
+    result = solve_sequence_fault(
+        "single_line_to_ground", phase_voltage=120,
+        z1=0.4 + 0.5j, z2=0.3 + 0.4j, z0=0.6 + 0.7j,
+    )
+    np.testing.assert_allclose(result.phase_voltages[0], 0j, atol=1e-10)
