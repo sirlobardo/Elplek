@@ -43,12 +43,19 @@ class Branch:
 
 @dataclass(frozen=True, slots=True)
 class Source:
-    """Single-phase equivalent voltage source with series impedance."""
+    """Voltage source with positive-sequence impedance and optional Z2/Z0.
+
+    voltage and impedance represent the positive-sequence source. Negative- and
+    zero-sequence impedances must be supplied explicitly for asymmetrical
+    fault equivalents; omitted values are not assumed.
+    """
 
     bus_id: int
     voltage: complex
     impedance: complex
     name: str = ""
+    negative_sequence_impedance: complex | None = None
+    zero_sequence_impedance: complex | None = None
 
     def __post_init__(self) -> None:
         if self.bus_id <= 0:
