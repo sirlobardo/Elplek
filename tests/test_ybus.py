@@ -177,3 +177,103 @@ def test_positive_sequence_ybus_includes_transformer_impedance():
         build_ybus(network),
         [[y, -y], [-y, y]],
     )
+
+
+
+def test_explicit_grounded_wye_delta_zero_sequence_shunt_on_grounded_wye_side():
+    network = Network()
+    network.add_bus(Bus(1))
+    network.add_bus(Bus(2))
+    network.add_transformer(Transformer(
+        1, 2, 0.1j, 0.1j,
+        zero_sequence_impedance=0.2j,
+        from_connection="grounded_wye",
+        to_connection="delta",
+    ))
+
+    np.testing.assert_allclose(
+        build_sequence_ybus(network, "zero"),
+        [[1 / (0.2j), 0j], [0j, 0j]],
+    )
+
+
+def test_explicit_delta_grounded_wye_places_zero_sequence_shunt_on_to_side():
+    network = Network()
+    network.add_bus(Bus(1))
+    network.add_bus(Bus(2))
+    network.add_transformer(Transformer(
+        1, 2, 0.1j, 0.1j,
+        zero_sequence_impedance=0.2j,
+        from_connection="delta",
+        to_connection="grounded_wye",
+    ))
+
+    np.testing.assert_allclose(
+        build_sequence_ybus(network, "zero"),
+        [[0j, 0j], [0j, 1 / (0.2j)]],
+    )
+
+
+def test_explicit_grounded_wye_wye_includes_three_times_neutral_impedance():
+    network = Network()
+    network.add_bus(Bus(1))
+    network.add_bus(Bus(2))
+    network.add_transformer(Transformer(
+        1, 2, 0.1j, 0.1j,
+        zero_sequence_impedance=0.2j,
+        from_connection="grounded_wye",
+        to_connection="grounded_wye",
+        from_neutral_impedance=0.01j,
+        to_neutral_impedance=0.02j,
+    ))
+    y = 1 / (0.2j + 3 * 0.01j + 3 * 0.02j)
+
+    np.testing.assert_allclose(
+        build_sequence_ybus(network, "zero"),
+        [[y, -y], [-y, y]],
+    )
+
+
+@pytest.mark.parametrize(
+    ("from_connection", "to_connection"),
+    [
+        ("ungrounded_wye", "grounded_wye"),
+        ("grounded_wye", "ungrounded_wye"),
+        ("delta", "delta"),
+    ],
+)
+def test_explicit_blocking_winding_connections_block_zero_sequence(
+    from_connection, to_connection
+):
+    network = Network()
+    network.add_bus(Bus(1))
+    network.add_bus(Bus(2))
+    network.add_transformer(Transformer(
+        1, 2, 0.1j, 0.1j,
+        zero_sequence_impedance=0.2j,
+        from_connection=from_connection,
+        to_connection=to_connection,
+    ))
+
+    np.testing.assert_allclose(
+        build_sequence_ybus(network, "zero"),
+        np.zeros((2, 2)),
+    )
+
+
+def test_transformer_requires_both_explicit_winding_connections():
+    with pytest.raises(ValueError, match="specified together"):
+        Transformer(
+            1, 2, 0.1j, 0.1j,
+            from_connection="grounded_wye",
+        )
+
+
+def test_transformer_rejects_neutral_impedance_on_delta_winding():
+    with pytest.raises(ValueError, match="requires grounded_wye"):
+        Transformer(
+            1, 2, 0.1j, 0.1j,
+            from_connection="delta",
+            to_connection="grounded_wye",
+            to_neutral_impedance=0.01j,
+        )
