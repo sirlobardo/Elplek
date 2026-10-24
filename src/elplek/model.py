@@ -62,6 +62,40 @@ class Source:
             raise ValueError("Source bus_id must be positive")
 
 
+@dataclass(frozen=True, slots=True)
+class Transformer:
+    """Simplified two-winding transformer sequence equivalent.
+
+    zero_sequence_mode:
+      blocked: no zero-sequence connection between terminals.
+      through: zero-sequence impedance connects both terminals.
+      grounded_wye_delta: zero-sequence impedance is a grounded shunt at
+      from_bus only; zero sequence does not transfer to to_bus.
+
+    Tap ratios, phase shift, neutral impedance and magnetizing branch are
+    not represented yet.
+    """
+    from_bus: int
+    to_bus: int
+    positive_sequence_impedance: complex
+    negative_sequence_impedance: complex
+    zero_sequence_impedance: complex | None = None
+    zero_sequence_mode: str = "blocked"
+    name: str = ""
+
+    def __post_init__(self) -> None:
+        if self.from_bus <= 0 or self.to_bus <= 0:
+            raise ValueError("Transformer terminal IDs must be positive bus IDs")
+        if self.from_bus == self.to_bus:
+            raise ValueError("Transformer cannot connect a bus to itself")
+        if self.zero_sequence_mode not in {"blocked", "through", "grounded_wye_delta"}:
+            raise ValueError(
+                "zero_sequence_mode must be 'blocked', 'through', or 'grounded_wye_delta'"
+            )
+        if self.zero_sequence_mode != "blocked" and self.zero_sequence_impedance is None:
+            raise ValueError("Transformer zero-sequence impedance is required for this mode")
+
+
 @dataclass(slots=True)
 class Network:
     """Network with bus IDs independent of matrix row ordering."""
@@ -69,6 +103,7 @@ class Network:
     buses: list[Bus] = field(default_factory=list)
     branches: list[Branch] = field(default_factory=list)
     sources: list[Source] = field(default_factory=list)
+    transformers: list[Transformer] = field(default_factory=list)
 
     def add_bus(self, bus: Bus) -> None:
         if any(existing.id == bus.id for existing in self.buses):
@@ -86,6 +121,13 @@ class Network:
         if source.bus_id not in {bus.id for bus in self.buses}:
             raise ValueError(f"Source references unknown bus id: {source.bus_id}")
         self.sources.append(source)
+
+    def add_transformer(self, transformer: Transformer) -> None:
+        known_ids = {bus.id for bus in self.buses}
+        for terminal in (transformer.from_bus, transformer.to_bus):
+            if terminal not in known_ids:
+                raise ValueError(f"Transformer references unknown bus id: {terminal}")
+        self.transformers.append(transformer)
 
     @property
     def bus_index(self) -> dict[int, int]:
