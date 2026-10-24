@@ -8,6 +8,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal
 
+from .symmetrical_components import PhaseCurrents, sequence_to_phase_currents
+
 FaultType = Literal["three_phase", "line_to_line", "single_line_to_ground", "double_line_to_ground"]
 
 
@@ -24,6 +26,7 @@ class SequenceFaultResult:
     negative_current: complex
     zero_current: complex
     fault_current: complex
+    phase_currents: PhaseCurrents
 
 
 def solve_sequence_fault(
@@ -48,17 +51,20 @@ def solve_sequence_fault(
 
     if fault_type == "three_phase":
         i1 = voltage / (z1 + zf)
-        return SequenceFaultResult(i1, 0j, 0j, i1)
+        currents = sequence_to_phase_currents(0j, i1, 0j)
+        return SequenceFaultResult(i1, 0j, 0j, i1, currents)
 
     if fault_type == "single_line_to_ground":
         i0 = voltage / (z1 + z2 + z0 + 3 * zf)
-        return SequenceFaultResult(i0, i0, i0, 3 * i0)
+        currents = sequence_to_phase_currents(i0, i0, i0)
+        return SequenceFaultResult(i0, i0, i0, 3 * i0, currents)
 
     if fault_type == "line_to_line":
         i1 = voltage / (z1 + z2 + zf)
         i2 = -i1
         ib = complex(0, -(3**0.5)) * i1
-        return SequenceFaultResult(i1, i2, 0j, ib)
+        currents = sequence_to_phase_currents(0j, i1, i2)
+        return SequenceFaultResult(i1, i2, 0j, ib, currents)
 
     if fault_type == "double_line_to_ground":
         z0f = z0 + 3 * zf
@@ -69,6 +75,7 @@ def solve_sequence_fault(
         i1 = voltage / (z1 + parallel)
         i2 = -i1 * z0f / parallel_denominator
         i0 = -i1 * z2 / parallel_denominator
-        return SequenceFaultResult(i1, i2, i0, 3 * i0)
+        currents = sequence_to_phase_currents(i0, i1, i2)
+        return SequenceFaultResult(i1, i2, i0, 3 * i0, currents)
 
     raise ValueError(f"Unsupported fault type: {fault_type!r}")
