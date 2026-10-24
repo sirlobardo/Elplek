@@ -628,3 +628,126 @@ def test_shunt_rejects_nonpositive_bus_id():
 def test_shunt_rejects_nonfinite_admittance(admittance):
     with pytest.raises(ValueError, match="must be finite"):
         Shunt(1, admittance)
+
+
+
+def test_branch_nominal_pi_model_splits_total_shunt_between_both_buses():
+    network = Network()
+    network.add_bus(Bus(1))
+    network.add_bus(Bus(2))
+    network.add_branch(Branch(
+        1, 2, resistance=1.0, reactance=0.0,
+        shunt_admittance=0.0 + 2.0j,
+    ))
+
+    np.testing.assert_allclose(
+        build_ybus(network),
+        [[1.0 + 1.0j, -1.0 + 0j], [-1.0 + 0j, 1.0 + 1.0j]],
+    )
+
+
+def test_branch_nominal_pi_model_stamps_only_connected_end_when_other_is_ground():
+    network = Network()
+    network.add_bus(Bus(1))
+    network.add_branch(Branch(
+        1, 0, resistance=1.0, reactance=0.0,
+        shunt_admittance=0.0 + 2.0j,
+    ))
+
+    np.testing.assert_allclose(build_ybus(network), [[1.0 + 1.0j]])
+
+
+def test_sequence_pi_model_uses_positive_and_negative_shunt_data():
+    network = Network()
+    network.add_bus(Bus(1))
+    network.add_bus(Bus(2))
+    network.add_branch(Branch(
+        1, 2, resistance=1.0, reactance=0.0,
+        negative_sequence_impedance=2.0 + 0j,
+        shunt_admittance=0.0 + 0.2j,
+        negative_sequence_shunt_admittance=0.0 + 0.6j,
+    ))
+
+    np.testing.assert_allclose(
+        build_sequence_ybus(network, "positive"),
+        [[1.0 + 0.1j, -1.0 + 0j], [-1.0 + 0j, 1.0 + 0.1j]],
+    )
+    np.testing.assert_allclose(
+        build_sequence_ybus(network, "negative"),
+        [[0.5 + 0.3j, -0.5 + 0j], [-0.5 + 0j, 0.5 + 0.3j]],
+    )
+
+
+def test_sequence_pi_model_negative_shunt_defaults_to_positive_shunt():
+    network = Network()
+    network.add_bus(Bus(1))
+    network.add_bus(Bus(2))
+    network.add_branch(Branch(
+        1, 2, resistance=1.0, reactance=0.0,
+        shunt_admittance=0.0 + 0.2j,
+    ))
+
+    np.testing.assert_allclose(
+        build_sequence_ybus(network, "negative"),
+        [[1.0 + 0.1j, -1.0 + 0j], [-1.0 + 0j, 1.0 + 0.1j]],
+    )
+
+
+def test_sequence_pi_model_requires_zero_sequence_shunt_if_positive_is_nonzero():
+    network = Network()
+    network.add_bus(Bus(1))
+    network.add_bus(Bus(2))
+    network.add_branch(Branch(
+        1, 2, resistance=1.0, reactance=0.0,
+        zero_sequence_impedance=4.0 + 0j,
+        shunt_admittance=0.0 + 0.2j,
+        name="line with charging",
+    ))
+
+    with pytest.raises(ValueError, match="no zero-sequence shunt admittance"):
+        build_sequence_ybus(network, "zero")
+
+
+def test_sequence_pi_model_stamps_explicit_zero_sequence_shunt():
+    network = Network()
+    network.add_bus(Bus(1))
+    network.add_bus(Bus(2))
+    network.add_branch(Branch(
+        1, 2, resistance=1.0, reactance=0.0,
+        zero_sequence_impedance=4.0 + 0j,
+        shunt_admittance=0.0 + 0.2j,
+        zero_sequence_shunt_admittance=0.0 + 0.4j,
+    ))
+
+    np.testing.assert_allclose(
+        build_sequence_ybus(network, "zero"),
+        [[0.25 + 0.2j, -0.25 + 0j], [-0.25 + 0j, 0.25 + 0.2j]],
+    )
+
+
+def test_sequence_pi_model_with_zero_positive_shunt_defaults_zero_sequence_shunt_to_zero():
+    network = Network()
+    network.add_bus(Bus(1))
+    network.add_bus(Bus(2))
+    network.add_branch(Branch(
+        1, 2, resistance=1.0, reactance=0.0,
+        zero_sequence_impedance=4.0 + 0j,
+    ))
+
+    np.testing.assert_allclose(
+        build_sequence_ybus(network, "zero"),
+        [[0.25 + 0j, -0.25 + 0j], [-0.25 + 0j, 0.25 + 0j]],
+    )
+
+
+@pytest.mark.parametrize(
+    "admittance_field",
+    [
+        {"shunt_admittance": complex(float("nan"), 0)},
+        {"negative_sequence_shunt_admittance": complex(0, float("inf"))},
+        {"zero_sequence_shunt_admittance": complex(float("-inf"), 0)},
+    ],
+)
+def test_branch_rejects_nonfinite_sequence_shunt_admittance(admittance_field):
+    with pytest.raises(ValueError, match="Branch shunt admittances must be finite"):
+        Branch(1, 2, 1.0, 0.0, **admittance_field)
