@@ -50,8 +50,8 @@ def build_ybus(network: Network) -> NDArray[np.complex128]:
     """Build the nodal admittance matrix for all series-impedance branches.
 
     Ground is represented by terminal ID 0 and has no matrix row/column.
-    Matrix ordering follows network.buses insertion order. Series branches and
-    Transformer positive-sequence impedances, magnitude taps, configured
+    Matrix ordering follows network.buses insertion order. Series branches,
+    transformer positive-sequence impedances, magnitude taps, configured
     vector-group phase displacement, and bus shunts are included. Mutual
     coupling and IEC peak corrections are not included.
     """
@@ -95,7 +95,8 @@ def build_sequence_ybus(
     displacement with opposite signs; zero-sequence phase displacement is
     zero and connection-dependent grounding rules are applied.
     Positive branches use R+jX. Negative branches fall back to positive
-    impedance when omitted. Zero-sequence branch impedances are mandatory.
+    impedance when omitted. Zero-sequence branch impedances and shunt
+    admittances are mandatory.
     """
     if sequence not in {"positive", "negative", "zero"}:
         raise ValueError("sequence must be 'positive', 'negative', or 'zero'")
