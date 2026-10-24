@@ -19,13 +19,20 @@ class Bus:
 
 @dataclass(frozen=True, slots=True)
 class Branch:
-    """Series impedance between two buses (or one bus and ground)."""
+    """Branch with positive-sequence R/X and optional negative/zero impedances.
+
+    If negative_sequence_impedance is omitted, the positive-sequence
+    impedance is used as an explicit engineering approximation. Zero-sequence
+    impedance must be supplied before a zero-sequence matrix can be assembled.
+    """
 
     from_bus: int
     to_bus: int
     resistance: float
     reactance: float
     name: str = ""
+    negative_sequence_impedance: complex | None = None
+    zero_sequence_impedance: complex | None = None
 
     def __post_init__(self) -> None:
         if self.from_bus < 0 or self.to_bus < 0:
