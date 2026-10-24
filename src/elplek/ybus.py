@@ -29,7 +29,7 @@ def _stamp_with_phase_displacement(
     phase_displacement: float,
     tap_ratio: float = 1.0,
 ) -> None:
-    """Stamp a unit-magnitude ideal phase-shifting transformer.
+    """Stamp an ideal transformer with magnitude tap and phase displacement.
 
     phase_displacement is the angle of the to-side positive-sequence voltage
     relative to the from side. tap_ratio is the ideal magnitude ratio on the
@@ -51,9 +51,9 @@ def build_ybus(network: Network) -> NDArray[np.complex128]:
 
     Ground is represented by terminal ID 0 and has no matrix row/column.
     Matrix ordering follows network.buses insertion order. Series branches and
-    transformer positive-sequence impedances and configured vector-group
-    phase displacement are included; magnitude taps, shunts, mutual coupling
-    and IEC peak corrections are not included.
+    transformer positive-sequence impedances, magnitude taps, and configured
+    vector-group phase displacement are included. Shunts, mutual coupling and
+    IEC peak corrections are not included.
     """
     n = len(network.buses)
     ybus = np.zeros((n, n), dtype=np.complex128)
