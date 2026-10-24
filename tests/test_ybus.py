@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from elplek.model import Branch, Bus, Network, Transformer
+from elplek.model import Branch, Bus, Network, Shunt, Transformer
 from elplek.ybus import build_sequence_ybus, build_ybus
 
 
@@ -521,3 +521,110 @@ def test_transformer_tap_ratio_scales_grounded_wye_delta_zero_sequence_shunt():
 def test_transformer_rejects_invalid_tap_ratio(tap_ratio):
     with pytest.raises(ValueError, match="tap_ratio must be a finite positive number"):
         Transformer(1, 2, 0.1j, 0.1j, tap_ratio=tap_ratio)
+
+
+
+def test_ybus_stamps_shunt_admittance_on_correct_bus_diagonal():
+    network = Network()
+    network.add_bus(Bus(20))
+    network.add_bus(Bus(5))
+    network.add_shunt(Shunt(5, 0.02 + 0.1j, name="bus capacitor"))
+
+    np.testing.assert_allclose(
+        build_ybus(network),
+        [[0j, 0j], [0j, 0.02 + 0.1j]],
+    )
+
+
+def test_ybus_accumulates_multiple_shunts_at_same_bus():
+    network = Network()
+    network.add_bus(Bus(1))
+    network.add_shunt(Shunt(1, 0.01 + 0.02j))
+    network.add_shunt(Shunt(1, 0.03 + 0.04j))
+
+    np.testing.assert_allclose(
+        build_ybus(network),
+        [[0.04 + 0.06j]],
+    )
+
+
+def test_sequence_ybus_uses_shunt_admittance_for_positive_sequence():
+    network = Network()
+    network.add_bus(Bus(1))
+    network.add_shunt(Shunt(1, 0.02 + 0.1j))
+
+    np.testing.assert_allclose(
+        build_sequence_ybus(network, "positive"),
+        [[0.02 + 0.1j]],
+    )
+
+
+def test_sequence_ybus_uses_explicit_negative_sequence_shunt_admittance():
+    network = Network()
+    network.add_bus(Bus(1))
+    network.add_shunt(Shunt(
+        1, 0.02 + 0.1j,
+        negative_sequence_admittance=0.03 + 0.2j,
+    ))
+
+    np.testing.assert_allclose(
+        build_sequence_ybus(network, "negative"),
+        [[0.03 + 0.2j]],
+    )
+
+
+def test_sequence_ybus_negative_shunt_falls_back_to_positive_admittance():
+    network = Network()
+    network.add_bus(Bus(1))
+    network.add_shunt(Shunt(1, 0.02 + 0.1j))
+
+    np.testing.assert_allclose(
+        build_sequence_ybus(network, "negative"),
+        [[0.02 + 0.1j]],
+    )
+
+
+def test_sequence_ybus_requires_zero_sequence_shunt_admittance():
+    network = Network()
+    network.add_bus(Bus(1))
+    network.add_shunt(Shunt(1, 0.02 + 0.1j, name="compensation reactor"))
+
+    with pytest.raises(ValueError, match="no zero-sequence admittance"):
+        build_sequence_ybus(network, "zero")
+
+
+def test_sequence_ybus_stamps_zero_sequence_shunt_admittance():
+    network = Network()
+    network.add_bus(Bus(1))
+    network.add_shunt(Shunt(
+        1, 0.02 + 0.1j,
+        negative_sequence_admittance=0.03 + 0.2j,
+        zero_sequence_admittance=0.04 + 0.3j,
+    ))
+
+    np.testing.assert_allclose(
+        build_sequence_ybus(network, "zero"),
+        [[0.04 + 0.3j]],
+    )
+
+
+def test_network_rejects_shunt_on_unknown_bus():
+    network = Network()
+    network.add_bus(Bus(1))
+
+    with pytest.raises(ValueError, match="Shunt references unknown bus"):
+        network.add_shunt(Shunt(2, 0.1j))
+
+
+def test_shunt_rejects_nonpositive_bus_id():
+    with pytest.raises(ValueError, match="Shunt bus_id must be positive"):
+        Shunt(0, 0.1j)
+
+
+@pytest.mark.parametrize(
+    "admittance",
+    [complex(float("nan"), 0), complex(0, float("inf"))],
+)
+def test_shunt_rejects_nonfinite_admittance(admittance):
+    with pytest.raises(ValueError, match="must be finite"):
+        Shunt(1, admittance)
